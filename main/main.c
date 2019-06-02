@@ -65,6 +65,7 @@ static camera_config_t camera_config = {
 
 static void wifi_init_softap();
 static void wifi_init();
+static void pir_init();
 static esp_err_t http_server_init();
 
 void app_main()
@@ -85,8 +86,10 @@ void app_main()
             vTaskDelay(10);
         }
     } else {
-        led_brightness(20);
+        // led_brightness(20);
     }
+
+    pir_init();
 
 #ifdef FISH_EYE_CAM
     // flip img, other cam setting view sensor.h
@@ -320,6 +323,40 @@ static void wifi_init_softap()
            ESP_WIFI_SSID, ESP_WIFI_PASS);
 }
 
+#define GPIO_INPUT_IO_0     13
+#define GPIO_INPUT_PIN_SEL  (1ULL<<GPIO_INPUT_IO_0) 
+#define ESP_INTR_FLAG_DEFAULT 0
+static xQueueHandle gpio_evt_queue = NULL;
+
+static void IRAM_ATTR gpio_isr_handler(void* arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
+
+static void gpio_task_example(void* arg)
+{
+    uint32_t io_num;
+    for(;;) {
+        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+        }
+    }
+}
+
+static void pir_init()
+{
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+    io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
+    io_conf.mode = GPIO_MODE_INPUT;
+    gpio_config(&io_conf);
+    gpio_set_intr_type(GPIO_INPUT_IO_0, GPIO_INTR_ANYEDGE);
+    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
+    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+    gpio_isr_handler_add(GPIO_INPUT_IO_0, gpio_isr_handler, (void*) GPIO_INPUT_IO_0);
+}
 
 
 
