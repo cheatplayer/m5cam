@@ -1,5 +1,16 @@
-如何使用：
+# M5Cam
 
-第一步：搜索名为 "M5Psram_Cam" 热点，并连接。
+**M5Stack Camera with PIR**
 
-第二步：打开192.168.4.1网页端即可
+2019/6/2 by DKZ
+
+
+
+## Dev
+
+```
+$ make
+$ make flash
+
+$ make monitor
+```

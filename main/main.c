@@ -64,6 +64,7 @@ static camera_config_t camera_config = {
 };
 
 static void wifi_init_softap();
+static void wifi_init();
 static esp_err_t http_server_init();
 
 void app_main()
@@ -95,7 +96,8 @@ void app_main()
 #endif
 
 #ifdef CAM_USE_WIFI
-    wifi_init_softap();
+    // wifi_init_softap();
+    wifi_init();
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
     http_server_init();
@@ -252,6 +254,41 @@ static esp_err_t event_handler(void* ctx, system_event_t* event)
   return ESP_OK;
 }
 
+#define STA_WIFI_SSID "dkzpi"
+#define STA_WIFI_PASS "davidkingzyb"
+
+static void wifi_init()
+{
+  s_wifi_event_group = xEventGroupCreate();
+
+  tcpip_adapter_init();
+  ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
+
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  wifi_config_t ap_config = {
+      .ap = {.ssid = ESP_WIFI_SSID,
+             .ssid_len = strlen(ESP_WIFI_SSID),
+             .password = ESP_WIFI_PASS,
+             .max_connection = MAX_STA_CONN,
+             .authmode = WIFI_AUTH_WPA_WPA2_PSK},
+  };
+  wifi_config_t sta_config = {
+        .sta = {
+            .ssid = STA_WIFI_SSID,
+            .password = STA_WIFI_PASS,
+            .bssid_set = false
+        }
+    };
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    esp_err_t tmp =  esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    uint8_t addr[4] = {192, 168, 4, 1};
+    s_ip_addr = *(ip4_addr_t*)&addr;
+}
+
 static void wifi_init_softap() 
 {
   s_wifi_event_group = xEventGroupCreate();
@@ -282,6 +319,7 @@ static void wifi_init_softap()
   ESP_LOGI(TAG, "wifi_init_softap finished.SSID:%s password:%s",
            ESP_WIFI_SSID, ESP_WIFI_PASS);
 }
+
 
 
 
