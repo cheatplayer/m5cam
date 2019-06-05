@@ -14,15 +14,17 @@
 #include "esp_camera.h"
 #include "esp_event_loop.h"
 #include "esp_http_server.h"
+#include "esp_http_client.h"
 #include "config.h"
 
 static const char* TAG = "camera";
 #define CAM_USE_WIFI
+#define USE_PIR
 
 #define ESP_WIFI_SSID "TP-LINK_M5CM"
 #define ESP_WIFI_PASS "davidkingzyb"
 
-#define MAX_STA_CONN  1
+#define MAX_STA_CONN  2
 
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
@@ -67,6 +69,7 @@ static void wifi_init_softap();
 static void wifi_init();
 static void pir_init();
 static esp_err_t http_server_init();
+static void req();
 
 void app_main()
 {
@@ -89,8 +92,6 @@ void app_main()
         // led_brightness(20);
     }
 
-    pir_init();
-
 #ifdef FISH_EYE_CAM
     // flip img, other cam setting view sensor.h
     sensor_t *s = esp_camera_sensor_get();
@@ -104,6 +105,10 @@ void app_main()
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
     http_server_init();
+#endif
+
+#ifdef USE_PIR
+    pir_init();
 #endif
 }
 
@@ -323,6 +328,9 @@ static void wifi_init_softap()
            ESP_WIFI_SSID, ESP_WIFI_PASS);
 }
 
+#endif
+
+#ifdef USE_PIR
 #define GPIO_INPUT_IO_0     13
 #define GPIO_INPUT_PIN_SEL  (1ULL<<GPIO_INPUT_IO_0) 
 #define ESP_INTR_FLAG_DEFAULT 0
@@ -334,12 +342,67 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
+esp_err_t _http_event_handle(esp_http_client_event_t *evt)
+{
+    switch(evt->event_id) {
+        case HTTP_EVENT_ERROR:
+            ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
+            break;
+        case HTTP_EVENT_ON_CONNECTED:
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
+            break;
+        case HTTP_EVENT_HEADER_SENT:
+            ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
+            break;
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER");
+            printf("%.*s", evt->data_len, (char*)evt->data);
+            break;
+        case HTTP_EVENT_ON_DATA:
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            if (!esp_http_client_is_chunked_response(evt->client)) {
+                printf("%.*s", evt->data_len, (char*)evt->data);
+            }
+
+            break;
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
+            break;
+        case HTTP_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+            break;
+    }
+    return ESP_OK;
+}
+
+static void req()
+{
+    printf("req");
+    esp_http_client_config_t config = {
+       .url = "http://192.168.7.1:5000/pir",
+       .event_handler = _http_event_handle,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_err_t err = esp_http_client_perform(client);
+
+    if (err == ESP_OK) {
+       ESP_LOGI(TAG, "Status = %d, content_length = %d",
+               esp_http_client_get_status_code(client),
+               esp_http_client_get_content_length(client));
+    }
+    esp_http_client_cleanup(client);
+}
+
 static void gpio_task_example(void* arg)
 {
     uint32_t io_num;
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            uint8_t is_pir=gpio_get_level(io_num);
+            printf("GPIO[%d] intr, val: %d\n", io_num, is_pir);
+            if(is_pir == 1){
+                req();
+            }
         }
     }
 }
@@ -354,10 +417,9 @@ static void pir_init()
     gpio_set_intr_type(GPIO_INPUT_IO_0, GPIO_INTR_ANYEDGE);
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
-    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+    // gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
     gpio_isr_handler_add(GPIO_INPUT_IO_0, gpio_isr_handler, (void*) GPIO_INPUT_IO_0);
+    ESP_LOGI(TAG,"pir init");
 }
-
-
 
 #endif
