@@ -363,7 +363,6 @@ static esp_err_t _http_event_handle(esp_http_client_event_t *evt)
             if (!esp_http_client_is_chunked_response(evt->client)) {
                 printf("%.*s", evt->data_len, (char*)evt->data);
             }
-
             break;
         case HTTP_EVENT_ON_FINISH:
             ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
@@ -399,9 +398,7 @@ static void gpio_task_example(void* arg)
     uint32_t io_num;
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            uint8_t is_pir=gpio_get_level(io_num);
-            printf("GPIO[%d] intr, val: %d\n", io_num, is_pir);
-            if(is_pir == 1){
+            if(gpio_get_level(io_num)== 1){
                 req();
             }
         }
