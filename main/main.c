@@ -390,6 +390,7 @@ static void req()
                esp_http_client_get_status_code(client),
                esp_http_client_get_content_length(client));
     }
+    esp_http_client_close(client);
     esp_http_client_cleanup(client);
 }
 
