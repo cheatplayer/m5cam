@@ -14,3 +14,13 @@ $ make flash
 
 $ make monitor
 ```
+
+## Config
+
+```
+$ make menuconfig
+```
+
+## Reference
+
+https://github.com/m5stack/m5stack-cam-psram
