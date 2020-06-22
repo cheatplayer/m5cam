@@ -9,6 +9,11 @@
 ## Dev
 
 ```
+export PATH=$HOME/workspace/hardware/xtensa-esp32-elf/bin:$PATH
+export IDF_PATH=~/workspace/hardware/esp-idf
+```
+
+```
 $ make
 $ make flash
 

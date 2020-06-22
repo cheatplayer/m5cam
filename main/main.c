@@ -19,9 +19,9 @@
 
 static const char* TAG = "camera";
 #define CAM_USE_WIFI
-#define USE_PIR
+// #define USE_PIR
 
-#define ESP_WIFI_SSID "TP-LINK_M5CM"
+#define ESP_WIFI_SSID "M5Cam"
 #define ESP_WIFI_PASS "davidkingzyb"
 
 #define MAX_STA_CONN  2
@@ -92,29 +92,30 @@ void app_main()
         // led_brightness(20);
     }
 
-#ifdef FISH_EYE_CAM
-    // flip img, other cam setting view sensor.h
-    sensor_t *s = esp_camera_sensor_get();
-    s->set_vflip(s, 1);
-    s->set_hmirror(s, 1);
-#endif
+    #ifdef FISH_EYE_CAM
+        // flip img, other cam setting view sensor.h
+        sensor_t *s = esp_camera_sensor_get();
+        s->set_vflip(s, 1);
+        s->set_hmirror(s, 1);
+    #endif
 
-#ifdef CAM_USE_WIFI
-    // wifi_init_softap();
-    wifi_init();
+    #ifdef CAM_USE_WIFI
+        wifi_init_softap();
+        // wifi_init();
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-    http_server_init();
-#endif
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        http_server_init();
+    #endif
 
-#ifdef USE_PIR
-    pir_init();
-#endif
+    #ifdef USE_PIR
+        pir_init();
+    #endif
 }
 
 #ifdef CAM_USE_WIFI
 
 esp_err_t jpg_httpd_handler(httpd_req_t *req){
+    ESP_LOGI(TAG,"jpg_http_handler");
     camera_fb_t * fb = NULL;
     esp_err_t res = ESP_OK;
     size_t fb_len = 0;
@@ -207,6 +208,7 @@ esp_err_t jpg_stream_httpd_handler(httpd_req_t *req){
 }
 
 static esp_err_t http_server_init(){
+    ESP_LOGI(TAG,"http_server_init");
     httpd_handle_t server;
     httpd_uri_t jpeg_uri = {
         .uri = "/jpg",
@@ -262,8 +264,8 @@ static esp_err_t event_handler(void* ctx, system_event_t* event)
   return ESP_OK;
 }
 
-#define STA_WIFI_SSID "dkzpi"
-#define STA_WIFI_PASS "davidkingzyb"
+#define STA_WIFI_SSID "ziroom405"
+#define STA_WIFI_PASS "ziroom405v"
 
 static void wifi_init()
 {
